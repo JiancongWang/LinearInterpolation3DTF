@@ -70,9 +70,8 @@ def get_pixel_value_3D(img, x, y, z):
 
 def bilinear_sampler(img, x, y, normalized_coordinate = False):
     """
-    Performs bilinear sampling of the input images according to the 
-    normalized coordinates provided by the sampling grid. Note that 
-    the sampling is done identically for each channel of the input.
+    Performs bilinear sampling of the input images. Note that the 
+    sampling is done identically for each channel of the input.
 
     To test if the function works properly, output image should be
     identical to input image when theta is initialized to identity
@@ -151,9 +150,8 @@ def bilinear_sampler(img, x, y, normalized_coordinate = False):
 
 def trilinear_sampler(img, x, y, z, normalized_coordinate = False):
     """
-    Performs bilinear sampling of the input images according to the 
-    normalized coordinates provided by the sampling grid. Note that 
-    the sampling is done identically for each channel of the input.
+    Performs trilinear sampling of the input images. Note that the 
+    sampling is done identically for each channel of the input.
 
     To test if the function works properly, output image should be
     identical to input image when theta is initialized to identity
@@ -251,3 +249,117 @@ def trilinear_sampler(img, x, y, z, normalized_coordinate = False):
                     wa_1*Ia_1, wb_1*Ib_1, wc_1*Ic_1, wd_1*Id_1])
 
     return out
+
+# Nearest neighbor sampler
+def binnsampler(img, x, y, normalized_coordinate = False):
+    """
+    Performs 2D nearest neigbour sampling of the input images. Note 
+    that the sampling is done identically for each channel of the 
+    input.
+
+    To test if the function works properly, output image should be
+    identical to input image when theta is initialized to identity
+    transform.
+
+    Input
+    -----
+    - img: batch of images in (B, H, W, C) layout.
+    - grid: x, y which is the output of affine_grid_generator.
+
+    Returns
+    -------
+    - interpolated images according to grids. Same size as grid.
+
+    """
+    # prepare useful params
+    B = tf.shape(img)[0]
+    H = tf.shape(img)[1]
+    W = tf.shape(img)[2]
+    C = tf.shape(img)[3]
+
+    max_y = tf.cast(H - 1, 'int32')
+    max_x = tf.cast(W - 1, 'int32')
+    zero = tf.zeros([], dtype='int32')
+
+    # cast indices as float32 (for rescaling)
+    x = tf.cast(x, 'float32')
+    y = tf.cast(y, 'float32')
+
+    # rescale x and y to [0, W/H]
+    if normalized_coordinate:
+        x = 0.5 * ((x + 1.0) * tf.cast(W, 'float32'))
+        y = 0.5 * ((y + 1.0) * tf.cast(H, 'float32'))
+
+    # grab 4 nearest corner points for each (x_i, y_i)
+    # i.e. we need a rectangle around the point of interest
+    x0 = tf.cast(x, 'int32')
+    y0 = tf.cast(y, 'int32')
+
+    # clip to range [0, H/W] to not violate img boundaries
+    x0 = tf.clip_by_value(x0, zero, max_x)
+    y0 = tf.clip_by_value(y0, zero, max_y)
+
+    # get pixel value at corner coords
+    out = get_pixel_value_2D(img, x0, y0)
+
+    return out
+
+# Nearest neighbor sampler
+def trinnsampler(img, x, y, normalized_coordinate = False):
+    """
+    Performs 3D nearest neigbour sampling of the input images. Note 
+    that the sampling is done identically for each channel of the 
+    input.
+
+    To test if the function works properly, output image should be
+    identical to input image when theta is initialized to identity
+    transform.
+
+    Input
+    -----
+    - img: batch of images in (B, H, W, C) layout.
+    - grid: x, y which is the output of affine_grid_generator.
+
+    Returns
+    -------
+    - interpolated images according to grids. Same size as grid.
+
+    """
+    # prepare useful params
+    B = tf.shape(img)[0]
+    H = tf.shape(img)[1]
+    W = tf.shape(img)[2]
+    D = tf.shape(img)[3]
+    C = tf.shape(img)[4]
+
+    max_y = tf.cast(H - 1, tf.int32)
+    max_x = tf.cast(W - 1, tf.int32)
+    max_z = tf.cast(D - 1, tf.int32)
+    zero = tf.zeros([], dtype=tf.int32)
+
+    # rescale x and y to [0, W/H]
+    if normalized_coordinate:
+        # cast indices as float32 (for rescaling)
+        x = tf.cast(x, tf.float32)
+        y = tf.cast(y, tf.float32)
+        z = tf.cast(y, tf.float32)
+        x = 0.5 * ((x + 1.0) * tf.cast(W, tf.float32))
+        y = 0.5 * ((y + 1.0) * tf.cast(H, tf.float32))
+        z = 0.5 * ((z + 1.0) * tf.cast(D, tf.float32))
+
+    # grab 4 nearest corner points for each (x_i, y_i. z_i)
+    # i.e. we need a rectangle around the point of interest
+    x0 = tf.cast(x, tf.int32)
+    y0 = tf.cast(y, tf.int32)
+    z0 = tf.cast(z, tf.int32)
+
+    # clip to range [0, H/W] to not violate img boundaries
+    x0 = tf.clip_by_value(x0, zero, max_x)
+    y0 = tf.clip_by_value(y0, zero, max_y)
+    z0 = tf.clip_by_value(z0, zero, max_z)
+
+    # get pixel value at corner coords
+    out = get_pixel_value_3D(img, x0, y0, z0)
+    
+    return out
+
